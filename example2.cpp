@@ -16,11 +16,11 @@ int main(int argc, char* argv[])
 {
 	btScalar fixedTimeStep = 1. / 240.;
 
-    std::string path = "C:/Users/edued/Documents/Universidad/Quadruped/StaticLibTest/ThirdParty/bullet3/data/";
+    std::string path = "C:/Users/edued/Documents/Universidad/Quadruped/StaticLibTest/ThirdParty/bullet3Robotics/data/";
 	
     b3RobotSimulatorClientAPI* sim = new b3RobotSimulatorClientAPI();
     
-    sim->setAdditionalSearchPath("C:/Users/edued/Documents/Universidad/Quadruped/StaticLibTest/ThirdParty/bullet3/data");
+    sim->setAdditionalSearchPath("C:/Users/edued/Documents/Universidad/Quadruped/StaticLibTest/ThirdParty/bullet3Robotics/data");
     sim->connect(eCONNECT_GUI);  //eCONNECT_GUI);//DIRECT);
     //Can also use eCONNECT_DIRECT,eCONNECT_SHARED_MEMORY,eCONNECT_UDP,eCONNECT_TCP, for example:
     //sim->connect(eCONNECT_UDP, "localhost", 1234);

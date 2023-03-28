@@ -15,8 +15,8 @@ if (MSVC)
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MD")
 endif()
 
-SET(BULLET_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/bullet3/build_cmake/local_install/include/bullet)
-SET(BULLET_LIBRARY_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/bullet3/build_cmake/local_install/lib)
+SET(BULLET_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/bullet3Robotics/build_cmake/local_install/include/bullet)
+SET(BULLET_LIBRARY_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/bullet3Robotics/build_cmake/local_install/lib)
 
 
 
