@@ -1,8 +1,9 @@
 #define _USE_MATH_DEFINES
-#include "RobotSimulator/b3RobotSimulatorClientAPI.h"
-#include "SharedMemory/PhysicsClientC_API.h"
+//#include "RobotSimulator/b3RobotSimulatorClientAPI.h"
+//#include "SharedMemory/PhysicsClientC_API.h"
 #include "btBulletDynamicsCommon.h"
 #include "Utils/b3Clock.h"
+#include "RoboSim.hpp"
 
 #include <string.h>
 #include <stdio.h>
@@ -10,108 +11,225 @@
 #include <iostream>
 #include <cmath>
 #include <math.h>
+#include <random>
+#include <iomanip>
+#include "omp.h"
+#include <chrono>
 
+int createSlope(RoboSim* sim, double slope, double roughness) 
+{   
+    // WORK IN PROGRESS
+
+
+    // Gather noise data
+    //std::vector<double> height_map, noise_map;
+    
+    int resolution = 90;
+    double terrain_x_size = 0.25;
+    double terrain_y_size = 0.25;
+
+    std::vector<float> height_map(resolution * resolution);
+
+    // create a uniform random distribution between -1 and 1
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<> dis(-1.0, 1.0);
+    
+    for (int y = 0; y < resolution; y++){
+        for (int x = 0; x < resolution; x++){
+            height_map[y*resolution + x] = roughness * dis(gen) + x * terrain_x_size * slope/ resolution;
+        }
+    }
+
+
+    
+    auto map_id = sim->loadHeightfield(height_map,
+                                    resolution, 
+                                    resolution,
+                                    terrain_x_size,
+                                    terrain_y_size,
+                                    1.0);
+    
+    return map_id;
+}
+
+RoboSim* init_sim(bool use_gui, btScalar fixedTimeStep = 1. / 240.){
+    const std::string   path = "C:/Users/edued/Documents/Universidad/Quadruped/GIAdog Bullet/ThirdParty/bullet3Robotics/data/";
+    RoboSim* sim = new RoboSim();
+    
+    if (use_gui){
+        sim->connect(eCONNECT_GUI);  
+        sim->configureDebugVisualizer( COV_ENABLE_GUI,               1);
+        sim->configureDebugVisualizer( COV_ENABLE_SHADOWS,           1);//
+        sim->configureDebugVisualizer( COV_ENABLE_KEYBOARD_SHORTCUTS,1);
+        sim->configureDebugVisualizer( COV_ENABLE_MOUSE_PICKING,     1);
+        sim->syncBodies();
+
+        double distance = 4.5;
+        double yaw      = 50;
+        btVector3 initial_pos = btVector3(0.0, 0.0, 0.0);
+        sim->resetDebugVisualizerCamera(distance, -30, yaw, initial_pos);
+        sim->setRealTimeSimulation(false);
+    }
+    else{
+        sim->connect(eCONNECT_DIRECT);
+        sim->setRealTimeSimulation(false);
+    }
+    sim->setTimeStep(fixedTimeStep);
+
+    int plane_id = createSlope(sim, 1.0, 0.3);
+
+    int base_idx = sim->loadURDF("mini_ros/urdf/spot.urdf", 
+                                btVector3(0, 0, 0.5),       // position 
+                                btQuaternion(0, 0, 0, 1), // orientation
+                                false,                    // useMultiBody
+                                false                     // useFixedBase
+                                );
+
+
+   return sim;
+
+}
+RoboSim* init_sim_gui(btScalar fixedTimeStep = 1. / 240.){
+    RoboSim* sim = new RoboSim();
+    sim->connect(eCONNECT_GUI);  
+    sim->configureDebugVisualizer( COV_ENABLE_GUI,               1);
+    sim->configureDebugVisualizer( COV_ENABLE_SHADOWS,           1);//
+    sim->configureDebugVisualizer( COV_ENABLE_KEYBOARD_SHORTCUTS,1);
+    sim->configureDebugVisualizer( COV_ENABLE_MOUSE_PICKING,     1);
+    sim->syncBodies();
+
+    double distance = 4.5;
+    double yaw      = 50;
+    btVector3 initial_pos = btVector3(0.0, 0.0, 0.0);
+    sim->resetDebugVisualizerCamera(distance, -30, yaw, initial_pos);
+    sim->setRealTimeSimulation(false);
+    sim->setTimeStep(fixedTimeStep);
+    int plane_id = createSlope(sim, 1.0, 0.3);
+
+    int base_idx = sim->loadURDF("anymal_c/urdf/anymal.urdf", 
+                                btVector3(0, 0, 1.4),       // position 
+                                btQuaternion(0, 0, 0, 1), // orientation
+                                false,                    // useMultiBody
+                                false                     // useFixedBase
+                                );
+    sim->setGravity(btVector3(0, 0, -9.81));
+    
+    return sim;
+}
+
+RoboSim* init_sim_no_gui(btScalar fixedTimeStep = 1. / 240.){
+    RoboSim* sim = new RoboSim();
+    sim->connect(eCONNECT_DIRECT);  
+    sim->setRealTimeSimulation(false);
+    sim->setTimeStep(fixedTimeStep);
+    int plane_id = createSlope(sim, 1.0, 0.3);
+
+    int base_idx = sim->loadURDF("anymal_c/urdf/anymal.urdf", 
+                                btVector3(0, 0, 1.4),       // position 
+                                btQuaternion(0, 0, 0, 1), // orientation
+                                false,                    // useMultiBody
+                                false                     // useFixedBase
+                                );
+    sim->setGravity(btVector3(0, 0, -9.81));
+    
+    return sim;
+}
 
 int main(int argc, char* argv[])
 {
-	btScalar fixedTimeStep = 1. / 240.;
-
-    std::string path = "C:/Users/edued/Documents/Universidad/Quadruped/StaticLibTest/ThirdParty/bullet3Robotics/data/";
 	
-    b3RobotSimulatorClientAPI* sim = new b3RobotSimulatorClientAPI();
+    btScalar fixedTimeStep = 1. / 240.;
     
-    sim->setAdditionalSearchPath("C:/Users/edued/Documents/Universidad/Quadruped/StaticLibTest/ThirdParty/bullet3Robotics/data");
-    sim->connect(eCONNECT_GUI);  //eCONNECT_GUI);//DIRECT);
-    //Can also use eCONNECT_DIRECT,eCONNECT_SHARED_MEMORY,eCONNECT_UDP,eCONNECT_TCP, for example:
-    //sim->connect(eCONNECT_UDP, "localhost", 1234);
-    sim->configureDebugVisualizer(COV_ENABLE_GUI, 1);
-    sim->configureDebugVisualizer( COV_ENABLE_SHADOWS, 1);//
-    sim->configureDebugVisualizer( COV_ENABLE_KEYBOARD_SHORTCUTS,1);
-	sim->configureDebugVisualizer( COV_ENABLE_MOUSE_PICKING, 1);
-    //sim->setTimeOut(3);
-    //syncBodies is only needed when connecting to an existing physics server that has already some bodies
-    sim->syncBodies();
+    const int N_SIMS = 100;
+    omp_set_num_threads(8);
 
-    sim->setTimeStep(fixedTimeStep);
+    //Create an array of simulators
 
-    btQuaternion q = sim->getQuaternionFromEuler(btVector3(0.1, 0.2, 0.3));
-    btVector3 rpy;
-    rpy = sim->getEulerFromQuaternion(q);
 
-    sim->setGravity(btVector3(0, 0, -9.8));
-    btQuaternion orn;
-    orn.setEulerZYX(0, 0, 0);
-
-    b3RobotSimulatorLoadUrdfFileArgs args;
-    args.m_startPosition.setValue(0, 0, 0);
-    args.m_startOrientation = orn;
-    args.m_useMultiBody = false;  //true : false;//false : true;
-    args.m_forceOverrideFixedBase = true;
-
-    int plane_id = sim->loadURDF(path + "plane.urdf", args);
-    
-    // args.m_startPosition.setValue(1.66, 1.66, 1.66);
-    // args.m_startOrientation.setEulerZYX(M_PI, M_PI/2, M_PI/4);
-    // args.m_useMultiBody = false;
-    // args.m_forceOverrideFixedBase = false;
-    // int cube_id  = sim->loadURDF(path + "cube.urdf", args);
-    btVector3 initial_pos = btVector3(1.66, 1.66, 10.66);
-    args.m_startPosition = initial_pos;
-    args.m_startOrientation.setEulerZYX(0, 3.1415 * 0.23, 0);
-    args.m_useMultiBody = true;
-    args.m_forceOverrideFixedBase = false;
-    sim->loadURDF(path +"quadruped/minitaur.urdf", args);
-
-    double distance = 1.5;
-    double yaw = 50;
-    sim->resetDebugVisualizerCamera(distance, yaw, 20, initial_pos);
-    sim->setRealTimeSimulation(false);
-    sim->renderScene();
-
-	
-	int enableSim = 1;
-	std::cout << "Simulando\n" ;
-	while (sim->canSubmitCommand())
-	{	
-
-		b3KeyboardEventsData keyEvents;
-		sim->getKeyboardEvents(&keyEvents);
-		if (keyEvents.m_numKeyboardEvents)
-		{
-		
-			//printf("num key events = %d]\n", keyEvents.m_numKeyboardEvents);
-			//m_keyState is a flag combination of eButtonIsDown,eButtonTriggered, eButtonReleased
-			for (int i=0;i<keyEvents.m_numKeyboardEvents;i++)
-			{
-				if (keyEvents.m_keyboardEvents[i].m_keyCode=='i' && keyEvents.m_keyboardEvents[i].m_keyState & eButtonTriggered)
-				{
-					enableSim = !enableSim;
-				}
-			}
-		}
-	
-        //printf(".");
-        if (enableSim)
-        {   
-            
-            sim->stepSimulation();
-
-            btVector3 rpy = sim->getEulerFromQuaternion(orn);
-
-            
+    RoboSim* sims[N_SIMS];
+#pragma omp parallel for schedule(auto)
+    for (int i = 0; i < N_SIMS; i++){
+        if (i == -1){
+            sims[i] = init_sim_gui();
         }
+        else{
+            sims[i] = init_sim_no_gui();
+        }
+    }
+    printf("Sims initialized\n");
+
+    
+	// int enableSim = 1;
+	// while (sims[0]->canSubmitCommand())
+	// {	
+
+	// 	// b3KeyboardEventsData keyEvents;
+	// 	// sims[0]->getKeyboardEvents(&keyEvents);
+	// 	// if (keyEvents.m_numKeyboardEvents)
+	// 	// {
 		
-		sim->renderScene();
-		b3Clock::usleep(1000. * 1000. * fixedTimeStep);
-	}
+	// 	// 	for (int i=0;i<keyEvents.m_numKeyboardEvents;i++)
+	// 	// 	{
+	// 	// 		if (keyEvents.m_keyboardEvents[i].m_keyCode=='i' && keyEvents.m_keyboardEvents[i].m_keyState & eButtonTriggered)
+	// 	// 		{
+	// 	// 			enableSim = !enableSim;
+	// 	// 		}
+	// 	// 	}
+	// 	// }
+    //     sims[0]->renderScene();
+    //     //sim->stepSimulation();
+    //     for (int i = 0; i < N_SIMS; i++){
+    //         #pragma omp parallel for schedule(auto)
+    //         sims[i]->stepSimulation();
+    //     }
+
+
+		
+	// 	//b3Clock::usleep(1000. * 1000. * fixedTimeStep);
+	// }
+    double Total_Simulation_Time = 10.0;
+    int N_STEPS = Total_Simulation_Time / fixedTimeStep;
+    printf("N_STEPS: %d\n", N_STEPS);
+
+    // Get the current time
+    
+    auto start = std::chrono::high_resolution_clock::now();
+    
+    printf("Start simulation\n");
+    for (int i = 0; i < N_STEPS; i++){
+#pragma omp parallel for schedule(auto)
+        for (int j = 0; j < N_SIMS; j++){
+            sims[j]->stepSimulation();
+        }
+    }
+
+    printf("End simulation\n");
+
+    auto stop = std::chrono::high_resolution_clock::now();
+    
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+    
+    double seconds = duration.count() / 1000000.0;
+    
+    std::cout << "Time taken by function: "
+              << seconds << " seconds" << std::endl;
+    double real_time_factor = (Total_Simulation_Time * N_SIMS) /  seconds ;
+
+    std::cout << "Elapsed time: " << seconds << "s\n";
+    std::cout << "Real time factor: " << real_time_factor << "\n";
+    
+
+
+
 
 	printf("sim->disconnect\n");
-
-    
-    sim->disconnect();
+    for (int i = 0; i < N_SIMS; i++){
+        sims[i]->disconnect();
+        delete sims[i];
+    }
+    //sim->disconnect();
+    //delete sim;
     printf("delete sim\n");
-    delete sim;
-	
-
 	printf("exit\n");
 }

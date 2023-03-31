@@ -29,8 +29,7 @@ endif()
 
 
 Include_directories(${BULLET_INCLUDE_DIR})
-add_executable(Example example2.cpp)
-
+add_executable(Example example2.cpp RoboSim.cpp)
 
 
 target_link_libraries(Example ${CPP_BULLET_LIB} opengl32)
